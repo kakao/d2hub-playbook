@@ -1,0 +1,48 @@
+---
+- name: Archive image
+  local_action: command docker save -o {{ archivefile_localpath }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: Change permission of tar file
+  become: yes
+  local_action: command chmod 0755 "{{ archivefile_localpath }}"
+
+- name: Upload image to server
+  become: yes
+  copy:
+    src: "{{ archivefile_localpath }}"
+    dest: "{{ archivefile_remotepath }}"
+    owner: "{{ user }}" 
+    group: "{{ group }}"
+
+- name: Load docker image from archive
+  become: yes
+  command: docker load -i {{ archivefile_remotepath }}
+
+- name: Check exist running container
+  shell: "docker ps | grep {{ docker_image_name }}"
+  register: exist_running_container
+  ignore_errors: yes
+  become: yes
+
+- name: Stop existed container
+  become: yes
+  shell: "{{ item }}"
+  with_items:
+    - docker stop -t 3 {{ container_name }}
+    - docker rm $(docker ps -qa)
+  when:
+    - "{{ exist_running_container.stdout_lines | length }} >= 1"
+    - force_restart_container
+  ignore_errors: yes
+
+- name: Run docker image
+  become: yes
+  command: |
+          docker run -d --name {{ container_name }}
+          -p 31802:5000
+          -e REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+          -e TZ=Asia/Seoul
+          --restart always
+          {{ docker_image_name }}:{{ docker_image_tag }}
+
+

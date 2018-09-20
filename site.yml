@@ -1,0 +1,43 @@
+---
+- hosts: all
+  become: yes
+  roles:
+    - role: common
+      #  environment: "{{proxy_env}}"
+
+- hosts: nginx
+  #  become: yes
+  roles:
+    - role: nginx
+      #  environment: "{{proxy_env}}"
+
+- hosts: d2hub
+  #  become: yes
+  roles:
+    - role: d2hub
+      #  environment: "{{proxy_env}}"
+
+- hosts: docker-auth
+  #  become: yes
+  roles:
+    - role: docker-auth
+      #  environment: "{{proxy_env}}"
+
+- hosts: api-registry
+  #  become: yes
+  roles:
+    - role: api-registry
+      #  environment: "{{proxy_env}}"
+
+- hosts: index-registry
+  #  become: yes
+  roles:
+    - role: index-registry
+      #  environment: "{{proxy_env}}"
+
+- hosts: docker-builder
+  #  become: yes
+  roles:
+    - role: docker-builder
+      #  environment: "{{proxy_env}}"
+

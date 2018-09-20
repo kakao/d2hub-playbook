@@ -1,0 +1,57 @@
+---
+- name: Archive image
+  become: yes
+  local_action: command docker save -o {{ archivefile_localpath }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: Change permission of tar file
+  become: yes
+  local_action: command chmod 0755 "{{ archivefile_localpath }}"
+
+- name: Upload image to server
+  copy:
+    src: "{{ archivefile_localpath }}"
+    dest: "{{ archivefile_remotepath }}"
+    owner: "{{ user }}"
+    group: "{{ group }}"
+
+- name: Load docker image from archive
+  become: yes
+  command: docker load -i {{ archivefile_remotepath }}
+
+- name: Check exist running container
+  become: yes
+  shell: "docker ps -a | grep {{ docker_image_name }}"
+  register: exist_running_container
+  ignore_errors: yes
+
+- name: Stop existed container
+  become: yes
+  shell: "{{ item }}"
+  with_items:
+    - docker kill {{ container_name }}
+    - docker rm $(docker ps -qa)
+  when:
+    - "{{ exist_running_container.stdout_lines | length }} >= 1"
+    - force_restart_container
+  ignore_errors: yes
+
+- name: Run docker image
+  become: yes
+  command: |
+          docker run -d  --name {{ container_name }} --net host
+          --restart always  -e ADMINS="['admin']"
+          -e API_DOCKER_REGISTRY_URL=http://{{ ansible_eth0.ipv4.address }}:31802
+          -e GITHUB_WEBHOOK_URL=http://d2hub.com/dockerbuild
+          -e DOCKER_BUILDER_URL=http://{{ ansible_eth0.ipv4.address }}:3000/build
+          -e DOCKER_BUILD_RESULT_URL=http://d2hub.com/buildresult
+          -e KAKAO_GITHUB_CLIENT_ID=adsfasdfadsfasdf
+          -e KAKAO_GITHUB_CLIENT_SECRET_ID=234qwrwqefasdf
+          -e API_DOCKER_REGISTRY_USERNAME=admin
+          -e API_DOCKER_REGISTRY_PASSWORD=admin
+          -e AUTH_TYPE="custom"
+          -e REGISTRY_URL=d2hub.com
+          -e LANG=C.UTF-8
+          -e TZ=Asia/Seoul
+          {{ docker_image_name }}:{{ docker_image_tag }} bundle exec rackup -o 0.0.0.0 -p 80
+
+

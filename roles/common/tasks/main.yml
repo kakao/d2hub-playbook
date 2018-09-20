@@ -1,0 +1,8 @@
+- name: Install Requirements
+  yum: name={{ item }}
+  with_items:
+  - java
+  - docker 
+
+- name: Launch docker
+  service: name=docker state=started

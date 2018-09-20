@@ -1,0 +1,52 @@
+---
+- name: Archive image
+  become: yes
+  local_action: command docker save -o {{ archivefile_localpath }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: Change permission of tar file
+  become: yes
+  local_action: command chmod 0755 "{{ archivefile_localpath }}"
+
+- name: Upload image to server
+  copy:
+    src: "{{ archivefile_localpath }}"
+    dest: "{{ archivefile_remotepath }}"
+    owner: "{{ user }}"
+    group: "{{ group }}"
+
+- name: Load docker image from archive
+  become: yes
+  command: docker load -i {{ archivefile_remotepath }}
+
+- name: Check exist running container
+  become: yes
+  shell: "docker ps | grep {{ docker_image_name }}"
+  register: exist_running_container
+  ignore_errors: yes
+
+- name: Stop existed container
+  become: yes
+  shell: "{{ item }}"
+  with_items:
+    - docker stop -t 3 {{ container_name }}
+    - docker rm $(docker ps -qa)
+  when:
+    - "{{ exist_running_container.stdout_lines | length }} >= 1"
+    - force_restart_container
+  ignore_errors: yes
+
+- name: Run docker image
+  become: yes
+  command: |
+          docker run -d --name {{ container_name }}
+          -p 31704:5001 --restart always
+          -e D2HUB_URL=http://{{ ansible_eth0.ipv4.address }}
+          -e REGISTRY_AUTH=token
+          -e REGISTRY_AUTH_TOKEN_REALM=http://{{ ansible_eth0.ipv4.address }}:31500/auth
+          -e REGISTRY_AUTH_TOKEN_SERVICE=registry.docker.d2hub.com
+          -e REGISTRY_AUTH_TOKEN_ISSUER="Auth Service"
+          -e REGISTRY_AUTH_TOKEN_ROOTCERTBUNDLE=/ssl/d2hub.com.cert
+          {{ docker_image_name }}:{{ docker_image_tag }}
+
+
+

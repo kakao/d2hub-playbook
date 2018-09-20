@@ -1,0 +1,49 @@
+---
+- name: Archive image
+  become: yes
+  local_action: command docker save -o {{ archivefile_localpath }} {{ docker_image_name }}:{{ docker_image_tag }}
+
+- name: Change permission of tar file
+  become: yes
+  local_action: command chmod 0755 "{{ archivefile_localpath }}"
+
+- name: Upload image to server
+  copy:
+    src: "{{ archivefile_localpath }}"
+    dest: "{{ archivefile_remotepath }}"
+    owner: "{{ user }}"
+    group: "{{ group }}"
+
+- name: Load docker image from archive
+  become: yes
+  command: docker load -i {{ archivefile_remotepath }}
+
+- name: Copy auth_config.yml
+  template: src=auth_config.j2 dest={{ auth_config_path }}
+
+- name: Check exist running container
+  become: yes
+  shell: "docker ps | grep {{ docker_image_name }}"
+  register: exist_running_container
+  ignore_errors: yes
+
+- name: Stop existed container
+  become: yes
+  shell: "{{ item }}"
+  with_items:
+    - docker stop -t 3 {{ container_name }}
+    - docker rm $(docker ps -qa)
+  when:
+    - "{{ exist_running_container.stdout_lines | length }} == 1"
+    - force_restart_container
+  ignore_errors: yes
+
+- name: Run docker image
+  become: yes
+  command: |
+          docker run -d --name {{ container_name }}
+          -p 31500:5001
+          -v {{ auth_config_path }}:/config/auth_config.yml
+          --restart always
+          {{ docker_image_name }}:{{ docker_image_tag }} --v=2 --alsologtostderr /config/auth_config.yml
+

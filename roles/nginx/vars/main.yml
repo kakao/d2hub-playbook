@@ -1,0 +1,12 @@
+docker_image_name: d2hub.com/d2hub-registry-nginx
+docker_image_tag: latest
+container_name : registry-nginx
+user: ec2-user
+group: ec2-user
+
+archivefile_name: nginx.tar
+archivefile_localpath: "{{ tmp_dir }}/{{ archivefile_name}}"
+
+archivefile_remotepath: "/home/{{user}}/{{ archivefile_name}}"
+
+force_restart_container: yes

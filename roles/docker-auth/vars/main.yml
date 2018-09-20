@@ -1,0 +1,14 @@
+docker_image_name: d2hub.com/docker_auth
+docker_image_tag: latest
+container_name: docker-auth
+user: ec2-user
+group: ec2-user
+
+archivefile_name: docker_auth.tar
+archivefile_localpath: "{{ tmp_dir }}/{{ archivefile_name}}"
+
+archivefile_remotepath: "/home/{{user}}/{{ archivefile_name}}"
+force_restart_container: yes
+
+auth_config_path: /home/{{ user }}/auth_config.yml
+
